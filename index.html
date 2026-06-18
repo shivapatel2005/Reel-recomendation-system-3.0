@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ReelRecommend</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<header>
+  <div class="logo-icon">🎬</div>
+  <div class="logo-text">Reel<span>Recommend</span></div>
+  <div class="powered">⚡ Powered by Groq</div>
+</header>
+
+<div class="chat-wrap" id="chat"></div>
+
+<div class="chips-wrap" id="chips">
+  <button class="chip" onclick="quickSend(this.textContent)">🔥 Dark thriller</button>
+  <button class="chip" onclick="quickSend(this.textContent)">🌸 Feel-good anime</button>
+  <button class="chip" onclick="quickSend(this.textContent)">🚀 Sci-fi movies</button>
+  <button class="chip" onclick="quickSend(this.textContent)">😂 Comedy web series</button>
+  <button class="chip" onclick="quickSend(this.textContent)">🕵️ Mystery & crime</button>
+  <button class="chip" onclick="quickSend(this.textContent)">💘 Romantic drama</button>
+</div>
+
+<div class="input-wrap">
+  <div class="input-inner">
+    <textarea id="msgInput" rows="1" placeholder="Describe what you're in the mood for…"
+      onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+    <button class="send-btn" id="sendBtn" onclick="sendMessage()">➤</button>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
