@@ -1,192 +1,433 @@
-// ─────────────────────────────────────────────────────────
-//  ReelRecommend — app.js  (Groq Edition — 100% FREE)
-//
-//  1. Get your free key at: https://console.groq.com
-//  2. Paste it below and save
-//  3. Open index.html with Live Server or python -m http.server 3000
-// ─────────────────────────────────────────────────────────
+```javascript
+// ================================
+// ReelRecommend - app.js
+// Developed by SHIVA PATEL
+// ================================
 
-const GROQ_API_KEY = 'YOUR_GROQ_API_KEY_HERE';
-const GROQ_MODEL   = 'llama-3.3-70b-versatile';   // free & fast
-const GROQ_URL     = 'https://api.groq.com/openai/v1/chat/completions';
+const GROQ_API_KEY = "YOUR_GROQ_API_KEY_HERE";
+const GROQ_MODEL = "llama-3.3-70b-versatile";
+const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 
-// ── System Prompt ─────────────────────────────────────────
-const SYSTEM_PROMPT = `You are ReelRecommend, an AI recommendation assistant that specializes exclusively in Movies, Web Series, and Anime.
+// ================================
+// SYSTEM PROMPT
+// ================================
 
-Your sole responsibility is to recommend movies, web series, and anime based on user preferences.
+const SYSTEM_PROMPT = `
+You are ReelRecommend.
 
-Strict Restrictions: You must NOT write code, answer general knowledge questions, solve math problems, discuss politics/religion/current events, act as a personal assistant, generate essays/emails/reports, or perform any task unrelated to movie/web series/anime recommendations.
+You ONLY recommend:
+- Movies
+- Anime
+- Web Series
 
-If a user requests anything outside your scope, set type to "out_of_scope" and message to "I am ReelRecommend and can only help with movie, web series, and anime recommendations."
-
-CRITICAL: Respond ONLY with a valid JSON object. No prose, no markdown, no code fences. Exact structure:
+If user asks anything outside entertainment recommendations,
+respond with:
 
 {
-  "type": "recommendations" | "question" | "out_of_scope",
-  "message": "A short conversational 1-2 sentence intro",
-  "recommendations": [
-    {
-      "num": 1,
-      "title": "Title",
-      "type": "Movie" | "Web Series" | "Anime",
-      "genre": "Genre1, Genre2",
-      "year": "2021",
-      "rating": "8.5/10",
-      "why": "Why they'll like it in 1-2 sentences"
-    }
-  ]
+ "type":"out_of_scope",
+ "message":"🎬 I can only help with movie, anime, and web series recommendations.",
+ "recommendations":[]
 }
 
-If type is "question" or "out_of_scope", set recommendations to [].
-If type is "recommendations", always include 3 to 6 items.`;
+Always return valid JSON.
 
-// ── State ─────────────────────────────────────────────────
-const history = [{ role: 'system', content: SYSTEM_PROMPT }];
-const chat    = document.getElementById('chat');
+Format:
 
-// ── Helpers ───────────────────────────────────────────────
-function escHtml(s) {
-  return String(s || '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+{
+ "type":"recommendations",
+ "message":"short intro",
+ "recommendations":[
+   {
+     "num":1,
+     "title":"Title",
+     "type":"Movie",
+     "genre":"Genre",
+     "year":"2024",
+     "rating":"8.5/10",
+     "why":"reason"
+   }
+ ]
 }
-function scrollDown() {
-  setTimeout(() => chat.scrollTo({ top: chat.scrollHeight, behavior: 'smooth' }), 60);
+
+Return 3-6 recommendations.
+`;
+
+// ================================
+// STATE
+// ================================
+
+const history = [
+  {
+    role: "system",
+    content: SYSTEM_PROMPT
+  }
+];
+
+let chatHistory =
+  JSON.parse(
+    localStorage.getItem("reelrecommend_history")
+  ) || [];
+
+const chat =
+  document.getElementById("chat");
+
+// ================================
+// SIDEBAR
+// ================================
+
+function toggleSidebar() {
+  document
+    .getElementById("sidebar")
+    .classList
+    .toggle("open");
 }
+
+document
+  .getElementById("menuBtn")
+  .addEventListener("click", toggleSidebar);
+
+// ================================
+// HELPERS
+// ================================
+
+function escHtml(str) {
+  return String(str || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function scrollBottom() {
+  setTimeout(() => {
+    chat.scrollTop = chat.scrollHeight;
+  }, 100);
+}
+
 function autoResize(el) {
-  el.style.height = 'auto';
-  el.style.height = Math.min(el.scrollHeight, 110) + 'px';
+  el.style.height = "auto";
+  el.style.height =
+    Math.min(el.scrollHeight, 120) + "px";
 }
+
 function handleKey(e) {
-  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
 }
+
 function quickSend(text) {
-  document.getElementById('msgInput').value = text;
+  document.getElementById("msgInput").value = text;
   sendMessage();
 }
 
-// ── DOM builders ──────────────────────────────────────────
-function addMsg(role, html) {
-  const div = document.createElement('div');
+// ================================
+// CHAT UI
+// ================================
+
+function addMsg(role, content) {
+
+  const div =
+    document.createElement("div");
+
   div.className = `msg ${role}`;
-  div.innerHTML = `<div class="bubble">${html}</div>`;
+
+  div.innerHTML = `
+    <div class="bubble">
+      ${content}
+    </div>
+  `;
+
   chat.appendChild(div);
-  scrollDown();
+
+  scrollBottom();
 }
 
 function showLoading() {
-  const el = document.createElement('div');
-  el.className = 'loading';
-  el.id = 'loading';
-  el.innerHTML = '<div class="dot"></div><div class="dot"></div><div class="dot"></div>';
-  chat.appendChild(el);
-  scrollDown();
+
+  const div =
+    document.createElement("div");
+
+  div.id = "loading";
+
+  div.className = "msg bot";
+
+  div.innerHTML = `
+  <div class="bubble">
+     🎬 Finding recommendations...
+  </div>
+  `;
+
+  chat.appendChild(div);
+
+  scrollBottom();
 }
 
 function removeLoading() {
-  const el = document.getElementById('loading');
-  if (el) el.remove();
+
+  const loading =
+    document.getElementById("loading");
+
+  if (loading) loading.remove();
 }
+
+// ================================
+// HISTORY
+// ================================
+
+function saveHistory() {
+
+  localStorage.setItem(
+    "reelrecommend_history",
+    JSON.stringify(chatHistory)
+  );
+}
+
+function renderHistory() {
+
+  const historyList =
+    document.getElementById("historyList");
+
+  if (!historyList) return;
+
+  historyList.innerHTML = "";
+
+  chatHistory
+    .slice()
+    .reverse()
+    .slice(0, 20)
+    .forEach(item => {
+
+      const div =
+        document.createElement("div");
+
+      div.style.padding = "8px";
+      div.style.borderBottom =
+        "1px solid #222";
+
+      div.innerHTML = `
+        <strong>${item.role}</strong><br>
+        ${escHtml(item.text.slice(0, 60))}
+      `;
+
+      historyList.appendChild(div);
+    });
+}
+
+// ================================
+// RECOMMENDATION CARDS
+// ================================
 
 function renderCards(recs) {
-  const grid = document.createElement('div');
-  grid.className = 'cards-grid';
-  recs.forEach((r, i) => {
-    const card = document.createElement('div');
-    card.className = 'rec-card';
+
+  const grid =
+    document.createElement("div");
+
+  grid.className = "examples";
+
+  recs.forEach(rec => {
+
+    const card =
+      document.createElement("div");
+
+    card.className = "example-card";
+
     card.innerHTML = `
-      <div class="card-header">
-        <span class="card-num">#${r.num || i + 1}</span>
-        <span class="card-type">${escHtml(r.type)}</span>
-      </div>
-      <div class="card-title">${escHtml(r.title)}</div>
-      <div class="card-meta">
-        <span class="meta-pill">📅 ${escHtml(r.year)}</span>
-        <span class="meta-pill">🎭 ${escHtml(r.genre)}</span>
-      </div>
-      <div class="rating">⭐ ${escHtml(r.rating)}</div>
-      <div class="card-why">
-        <strong>Why you'll like it:</strong> ${escHtml(r.why)}
-      </div>
+      <h3>${escHtml(rec.title)}</h3>
+
+      <p><strong>Type:</strong>
+      ${escHtml(rec.type)}</p>
+
+      <p><strong>Genre:</strong>
+      ${escHtml(rec.genre)}</p>
+
+      <p><strong>Year:</strong>
+      ${escHtml(rec.year)}</p>
+
+      <p><strong>Rating:</strong>
+      ⭐ ${escHtml(rec.rating)}</p>
+
+      <p>${escHtml(rec.why)}</p>
     `;
+
     grid.appendChild(card);
   });
+
   chat.appendChild(grid);
-  scrollDown();
+
+  scrollBottom();
 }
 
-// ── Main API call ─────────────────────────────────────────
+// ================================
+// SEND MESSAGE
+// ================================
+
 async function sendMessage() {
-  const input = document.getElementById('msgInput');
-  const btn   = document.getElementById('sendBtn');
-  const text  = input.value.trim();
+
+  const input =
+    document.getElementById("msgInput");
+
+  const text =
+    input.value.trim();
+
   if (!text) return;
 
-  // Guard: key not set
-  if (GROQ_API_KEY === 'YOUR_GROQ_API_KEY_HERE') {
-    addMsg('bot', '⚠️ Please open <code>app.js</code> and replace <code>YOUR_GROQ_API_KEY_HERE</code> with your free key from <a href="https://console.groq.com" target="_blank" style="color:#f5c842">console.groq.com</a>');
+  if (
+    GROQ_API_KEY ===
+    "YOUR_GROQ_API_KEY_HERE"
+  ) {
+
+    addMsg(
+      "bot",
+      "⚠️ Please add your Groq API Key in app.js"
+    );
+
     return;
   }
 
-  input.value = '';
-  input.style.height = 'auto';
-  btn.disabled = true;
-  document.getElementById('chips').style.display = 'none';
+  addMsg("user", escHtml(text));
 
-  addMsg('user', escHtml(text));
-  history.push({ role: 'user', content: text });
+  chatHistory.push({
+    role: "User",
+    text
+  });
+
+  saveHistory();
+  renderHistory();
+
+  history.push({
+    role: "user",
+    content: text
+  });
+
+  input.value = "";
+  input.style.height = "auto";
+
   showLoading();
 
   try {
-    const res = await fetch(GROQ_URL, {
-      method: 'POST',
+
+    const response =
+      await fetch(GROQ_URL, {
+
+      method: "POST",
+
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${GROQ_API_KEY}`
+        "Content-Type":
+          "application/json",
+
+        Authorization:
+          `Bearer ${GROQ_API_KEY}`
       },
+
       body: JSON.stringify({
+
         model: GROQ_MODEL,
+
         messages: history,
-        max_tokens: 1024,
+
         temperature: 0.7,
-        response_format: { type: 'json_object' }   // enforces JSON output
+
+        max_tokens: 1024,
+
+        response_format: {
+          type: "json_object"
+        }
+
       })
     });
 
-    const raw = await res.json();
+    const result =
+      await response.json();
+
     removeLoading();
 
-    if (!res.ok) {
-      addMsg('bot', `⚠️ Groq error ${res.status}: ${escHtml(raw?.error?.message || 'Unknown error')}`);
-      btn.disabled = false;
+    if (!response.ok) {
+
+      addMsg(
+        "bot",
+        "⚠️ Recommendation service is temporarily unavailable. Please try again later."
+      );
+
       return;
     }
 
-    const textContent = raw.choices?.[0]?.message?.content || '';
-    history.push({ role: 'assistant', content: textContent });
+    const content =
+      result.choices?.[0]
+      ?.message?.content || "";
 
     let data;
+
     try {
-      const clean = textContent.replace(/```json|```/g, '').trim();
-      data = JSON.parse(clean);
+
+      data =
+        JSON.parse(content);
+
     } catch {
-      data = { type: 'question', message: textContent, recommendations: [] };
+
+      addMsg(
+        "bot",
+        "⚠️ Invalid response received."
+      );
+
+      return;
     }
 
-    if (data.message) addMsg('bot', escHtml(data.message));
-    if (data.recommendations && data.recommendations.length > 0) {
-      renderCards(data.recommendations);
+    addMsg(
+      "bot",
+      escHtml(data.message)
+    );
+
+    chatHistory.push({
+      role: "Bot",
+      text: data.message
+    });
+
+    saveHistory();
+    renderHistory();
+
+    if (
+      data.recommendations &&
+      data.recommendations.length > 0
+    ) {
+
+      renderCards(
+        data.recommendations
+      );
     }
 
-  } catch (err) {
+  } catch (error) {
+
     removeLoading();
-    addMsg('bot', `⚠️ Network error: ${escHtml(err.message)}<br><small>Make sure you're running via a local server (not file://)</small>`);
-  }
 
-  btn.disabled = false;
-  input.focus();
+    addMsg(
+      "bot",
+      "😔 Sorry, I couldn't reach the recommendation engine right now. Please try again shortly."
+    );
+
+    console.error(error);
+  }
 }
 
-// ── Init ──────────────────────────────────────────────────
-addMsg('bot', '👋 Welcome to <strong>ReelRecommend</strong> ⚡ Powered by Groq!<br>Tell me what you\'re in the mood for — a genre, a vibe, a language, or a title you loved.');
+// ================================
+// INIT
+// ================================
+
+addMsg(
+  "bot",
+  `
+  👋 Welcome to <strong>ReelRecommend</strong>!
+
+  Tell me:
+  <br><br>
+
+  • Your favorite genre<br>
+  • Your mood<br>
+  • A movie/anime you loved<br><br>
+
+  and I'll suggest something great to watch.
+  `
+);
+
+renderHistory();
+```
