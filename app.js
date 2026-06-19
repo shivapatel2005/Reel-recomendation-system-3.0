@@ -4,7 +4,7 @@
 // Developed by SHIVA PATEL
 // ================================
 
-const GROQ_API_KEY = "YOUR_GROQ_API_KEY_HERE";
+const GROQ_API_KEY = "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";
 const GROQ_MODEL = "llama-3.3-70b-versatile";
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 
